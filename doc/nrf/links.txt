@@ -1143,6 +1143,8 @@
 .. _`nRF Cloud Portal Bulk Onboard Devices`: https://nrfcloud.com/#/add-device/bulk
 .. _`nRF Cloud Portal Devices`: https://nrfcloud.com/#/devices
 
+.. _`ProvisionDevices API`: https://api.nrfcloud.com/v1#operation/ProvisionDevices
+
 .. ### Source: zigbeealliance.org & csa-iot.org
 
 .. _`Zigbee Alliance`:
