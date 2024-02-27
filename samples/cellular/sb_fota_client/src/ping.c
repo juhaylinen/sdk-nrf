@@ -3,10 +3,9 @@
  *
  * SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
  */
-#include <zephyr.h>
 #include <stdio.h>
 #include <string.h>
-#include <net/socket.h>
+#include <zephyr/net/socket.h>
 #include <nrf_socket.h>
 
 #define INVALID_SOCKET		-1
