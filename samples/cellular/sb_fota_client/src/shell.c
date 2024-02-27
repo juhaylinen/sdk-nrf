@@ -4,13 +4,12 @@
  * SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
  */
 
-#include <shell/shell.h>
+#include <zephyr/shell/shell.h>
 #include <nrf_modem_at.h>
-#include <net/socket.h>
+#include <zephyr/net/socket.h>
 #include <modem/lte_lc.h>
 #include <modem/modem_info.h>
 #include <sb_fota.h>
-#include <nrf_modem_limits.h>
 
 #define DEFAULT_DATA_SEND_INTERVAL 10
 
