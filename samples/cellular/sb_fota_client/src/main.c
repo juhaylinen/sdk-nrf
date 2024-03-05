@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <zephyr/sys/reboot.h>
 #include <modem/nrf_modem_lib.h>
+#include <modem/lte_lc.h>
 #include <sb_fota.h>
 
 static void modem_fota_callback(enum sb_fota_event e)
@@ -65,6 +66,12 @@ int main(void)
 	if (sb_fota_init(&modem_fota_callback) != 0) {
 		printk("Failed to initialize modem FOTA\n");
 		return 1;
+	}
+
+	err = lte_lc_connect();
+	if (err) {
+		printk("Connecting to network failed, err %d\n", err);
+		return err;
 	}
 
 	k_sleep(K_FOREVER);
