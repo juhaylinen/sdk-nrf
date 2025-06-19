@@ -32,8 +32,8 @@
 	} while (0)
 
 static bool decode_at_command(zcbor_state_t *state, struct at_command *result);
-static bool decode_repeated_properties_tstrtstr(zcbor_state_t *state,
-						struct properties_tstrtstr *result);
+static bool decode_repeated_properties_tstrunion(zcbor_state_t *state,
+						 struct properties_tstrunion_r *result);
 static bool decode_config(zcbor_state_t *state, struct config *result);
 static bool decode_command(zcbor_state_t *state, struct command *result);
 static bool decode_commands(zcbor_state_t *state, struct commands *result);
@@ -65,13 +65,29 @@ static bool decode_at_command(zcbor_state_t *state, struct at_command *result)
 	return res;
 }
 
-static bool decode_repeated_properties_tstrtstr(zcbor_state_t *state,
-						struct properties_tstrtstr *result)
+static bool decode_repeated_properties_tstrunion(zcbor_state_t *state,
+						 struct properties_tstrunion_r *result)
 {
 	zcbor_log("%s\r\n", __func__);
+	bool int_res;
 
-	bool res = ((((zcbor_tstr_decode(state, (&(*result).config_properties_tstrtstr_key)))) &&
-		     (zcbor_tstr_decode(state, (&(*result).properties_tstrtstr)))));
+	bool res = ((
+		((zcbor_tstr_decode(state, (&(*result).config_properties_tstrunion_key)))) &&
+		(zcbor_union_start_code(state) &&
+		 (int_res =
+			  ((((zcbor_tstr_decode(state, (&(*result).properties_tstrunion_tstr)))) &&
+			    (((*result).properties_tstrunion_choice = properties_tstrunion_tstr_c),
+			     true)) ||
+			   (((zcbor_bool_decode(state, (&(*result).properties_tstrunion_bool)))) &&
+			    (((*result).properties_tstrunion_choice = properties_tstrunion_bool_c),
+			     true)) ||
+			   (((zcbor_int32_decode(state, (&(*result).properties_tstrunion_int)))) &&
+			    (((*result).properties_tstrunion_choice = properties_tstrunion_int_c),
+			     true)) ||
+			   (((zcbor_bstr_decode(state, (&(*result).properties_tstrunion_bstr)))) &&
+			    (((*result).properties_tstrunion_choice = properties_tstrunion_bstr_c),
+			     true))),
+		  zcbor_union_end_code(state), int_res))));
 
 	log_result(state, res, __func__);
 	return res;
@@ -81,20 +97,21 @@ static bool decode_config(zcbor_state_t *state, struct config *result)
 {
 	zcbor_log("%s\r\n", __func__);
 
-	bool res = (((((zcbor_uint32_expect(state, (1)))) &&
-		      ((zcbor_map_start_decode(state) &&
-			((zcbor_multi_decode(0, 10, &(*result).properties_tstrtstr_count,
-					     (zcbor_decoder_t *)decode_repeated_properties_tstrtstr,
-					     state, (*&(*result).properties_tstrtstr),
-					     sizeof(struct properties_tstrtstr))) ||
-			 (zcbor_list_map_end_force_decode(state), false)) &&
-			zcbor_map_end_decode(state))))));
+	bool res =
+		(((((zcbor_uint32_expect(state, (1)))) &&
+		   ((zcbor_map_start_decode(state) &&
+		     ((zcbor_multi_decode(0, 10, &(*result).properties_tstrunion_count,
+					  (zcbor_decoder_t *)decode_repeated_properties_tstrunion,
+					  state, (*&(*result).properties_tstrunion),
+					  sizeof(struct properties_tstrunion_r))) ||
+		      (zcbor_list_map_end_force_decode(state), false)) &&
+		     zcbor_map_end_decode(state))))));
 
 	if (false) {
 		/* For testing that the types of the arguments are correct.
 		 * A compiler error here means a bug in zcbor.
 		 */
-		decode_repeated_properties_tstrtstr(state, (*&(*result).properties_tstrtstr));
+		decode_repeated_properties_tstrunion(state, (*&(*result).properties_tstrunion));
 	}
 
 	log_result(state, res, __func__);
@@ -156,7 +173,7 @@ static bool decode_commands(zcbor_state_t *state, struct commands *result)
 int cbor_decode_commands(const uint8_t *payload, size_t payload_len, struct commands *result,
 			 size_t *payload_len_out)
 {
-	zcbor_state_t states[6];
+	zcbor_state_t states[7];
 
 	return zcbor_entry_function(payload, payload_len, (void *)result, payload_len_out, states,
 				    (zcbor_decoder_t *)decode_commands,

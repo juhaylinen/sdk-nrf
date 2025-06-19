@@ -36,14 +36,25 @@ struct at_command {
 	size_t at_command_ignore_cme_errors_uint_count;
 };
 
-struct properties_tstrtstr {
-	struct zcbor_string config_properties_tstrtstr_key;
-	struct zcbor_string properties_tstrtstr;
+struct properties_tstrunion_r {
+	struct zcbor_string config_properties_tstrunion_key;
+	union {
+		struct zcbor_string properties_tstrunion_tstr;
+		bool properties_tstrunion_bool;
+		int32_t properties_tstrunion_int;
+		struct zcbor_string properties_tstrunion_bstr;
+	};
+	enum {
+		properties_tstrunion_tstr_c,
+		properties_tstrunion_bool_c,
+		properties_tstrunion_int_c,
+		properties_tstrunion_bstr_c,
+	} properties_tstrunion_choice;
 };
 
 struct config {
-	struct properties_tstrtstr properties_tstrtstr[10];
-	size_t properties_tstrtstr_count;
+	struct properties_tstrunion_r properties_tstrunion[10];
+	size_t properties_tstrunion_count;
 };
 
 struct command {

@@ -366,7 +366,7 @@ static int write_config(struct command *cmd_req, struct cdc_out_fmt_data *out)
 {
 	struct config *aconf = &cmd_req->command_union_config_m;
 	int max_key_sz = 1;
-	struct properties_tstrtstr *pair;
+	struct properties_tstrunion_r *pair;
 	char *key;
 	int ret = 0;
 
@@ -374,10 +374,10 @@ static int write_config(struct command *cmd_req, struct cdc_out_fmt_data *out)
 	size_t resp_sz = CONFIG_NRF_PROVISIONING_CODEC_RX_SZ_START;
 
 	/* Figure out the max key and value legths */
-	for (int i = 0; i < aconf->properties_tstrtstr_count; i++) {
-		pair = &aconf->properties_tstrtstr[i];
+	for (int i = 0; i < aconf->properties_tstrunion_count; i++) {
+		pair = &aconf->properties_tstrunion[i];
 
-		max_key_sz = MAX(max_key_sz, pair->config_properties_tstrtstr_key.len + 1);
+		max_key_sz = MAX(max_key_sz, pair->config_properties_tstrunion_key.len + 1);
 	}
 
 	key = k_malloc(max_key_sz);
@@ -392,30 +392,77 @@ static int write_config(struct command *cmd_req, struct cdc_out_fmt_data *out)
 		goto exit;
 	}
 
-	LOG_DBG("Storing %d key-value pair/s", aconf->properties_tstrtstr_count);
+	LOG_DBG("Storing %d key-value pair/s", aconf->properties_tstrunion_count);
 
-	for (int i = 0; i < aconf->properties_tstrtstr_count; i++) {
-		pair = &aconf->properties_tstrtstr[i];
+	for (int i = 0; i < aconf->properties_tstrunion_count; i++) {
+		pair = &aconf->properties_tstrunion[i];
 
-		ret = charseq2cstr(key, &pair->config_properties_tstrtstr_key, max_key_sz);
+		ret = charseq2cstr(key, &pair->config_properties_tstrunion_key, max_key_sz);
 		if (ret < 0) {
 			LOG_WRN("Unable to store key: %s; err: %d", key, ret);
 			snprintk(resp, resp_sz, "Key [%d](0-indexed) too big", i);
 			goto exit;
 		}
 
-		ret = settings_save_one(key, pair->properties_tstrtstr.value,
-					pair->properties_tstrtstr.len);
-		if (ret) {
-			snprintk(resp, resp_sz, "Unable to store [%d](0-indexed) key-value-pair",
-				 i);
-			LOG_WRN("Unable to store key: %s, err: %d", key, ret);
-			LOG_HEXDUMP_WRN(pair->properties_tstrtstr.value,
-					pair->properties_tstrtstr.len, "Value");
+		switch (pair->properties_tstrunion_choice) {
+		case properties_tstrunion_tstr_c:
+			ret = settings_save_one(key, pair->properties_tstrunion_tstr.value,
+						pair->properties_tstrunion_tstr.len);
+			if (ret) {
+				snprintk(resp, resp_sz,
+					 "Unable to store [%d](0-indexed) key-value-pair", i);
+				LOG_WRN("Unable to store key: %s, err: %d", key, ret);
+				LOG_HEXDUMP_WRN(pair->properties_tstrunion_tstr.value,
+						pair->properties_tstrunion_tstr.len, "Value");
+				goto exit;
+			}
+			LOG_HEXDUMP_DBG(pair->properties_tstrunion_tstr.value,
+					pair->properties_tstrunion_tstr.len, key);
+			break;
+		case properties_tstrunion_int_c:
+			ret = settings_save_one(key, &pair->properties_tstrunion_int,
+						sizeof(pair->properties_tstrunion_int));
+			if (ret) {
+				snprintk(resp, resp_sz,
+					 "Unable to store [%d](0-indexed) key-value-pair", i);
+				LOG_WRN("Unable to store key: %s; value: %d; err: %d", key,
+					pair->properties_tstrunion_int, ret);
+				goto exit;
+			}
+			LOG_DBG("Stored key: \"%s\"; value: %d", key,
+				pair->properties_tstrunion_int);
+			break;
+		case properties_tstrunion_bool_c:
+			ret = settings_save_one(key, &pair->properties_tstrunion_bool,
+						sizeof(pair->properties_tstrunion_bool));
+			if (ret) {
+				snprintk(resp, resp_sz,
+					 "Unable to store [%d](0-indexed) key-value-pair", i);
+				LOG_WRN("Unable to store key: %s; value: %d; err: %d", key,
+					pair->properties_tstrunion_bool, ret);
+				goto exit;
+			}
+			LOG_DBG("Stored key: \"%s\"; value: %d", key,
+				pair->properties_tstrunion_bool);
+			break;
+		case properties_tstrunion_bstr_c:
+			ret = settings_save_one(key, pair->properties_tstrunion_bstr.value,
+						pair->properties_tstrunion_bstr.len);
+			if (ret) {
+				snprintk(resp, resp_sz,
+					 "Unable to store [%d](0-indexed) key-value-pair ", i);
+				LOG_WRN(" Unable to store key : %s; err : %d ", key, ret);
+				goto exit;
+			}
+			LOG_DBG("Stored key: \"%s\"", key);
+			LOG_HEXDUMP_DBG(pair->properties_tstrunion_bstr.value,
+					pair->properties_tstrunion_bstr.len, "value");
+			break;
+		default:
+			__ASSERT_NO_MSG(false);
+			ret = -ENOSYS;
 			goto exit;
 		}
-		LOG_HEXDUMP_DBG(pair->properties_tstrtstr.value, pair->properties_tstrtstr.len,
-				key);
 	}
 
 	/* No error to report */
