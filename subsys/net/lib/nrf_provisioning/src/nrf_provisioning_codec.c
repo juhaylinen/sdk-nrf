@@ -458,6 +458,18 @@ static int write_config(struct command *cmd_req, struct cdc_out_fmt_data *out)
 			LOG_HEXDUMP_DBG(pair->properties_tstrunion_bstr.value,
 					pair->properties_tstrunion_bstr.len, "value");
 			break;
+		case properties_tstrunion_float_c:
+			ret = settings_save_one(key, &pair->properties_tstrunion_float,
+						sizeof(pair->properties_tstrunion_float));
+			if (ret) {
+				snprintk(resp, resp_sz,
+					 "Unable to store [%d](0-indexed) key-value-pair ", i);
+				LOG_WRN(" Unable to store key : %s; err : %d ", key, ret);
+				goto exit;
+			}
+			LOG_DBG("Stored key: \"%s\"; value: %f", key,
+				pair->properties_tstrunion_float);
+			break;
 		default:
 			__ASSERT_NO_MSG(false);
 			ret = -ENOSYS;

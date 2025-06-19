@@ -86,6 +86,10 @@ static bool decode_repeated_properties_tstrunion(zcbor_state_t *state,
 			     true)) ||
 			   (((zcbor_bstr_decode(state, (&(*result).properties_tstrunion_bstr)))) &&
 			    (((*result).properties_tstrunion_choice = properties_tstrunion_bstr_c),
+			     true)) ||
+			   (((zcbor_float_decode(state,
+						 (&(*result).properties_tstrunion_float)))) &&
+			    (((*result).properties_tstrunion_choice = properties_tstrunion_float_c),
 			     true))),
 		  zcbor_union_end_code(state), int_res))));
 

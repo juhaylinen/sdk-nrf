@@ -43,12 +43,14 @@ struct properties_tstrunion_r {
 		bool properties_tstrunion_bool;
 		int32_t properties_tstrunion_int;
 		struct zcbor_string properties_tstrunion_bstr;
+		double properties_tstrunion_float;
 	};
 	enum {
 		properties_tstrunion_tstr_c,
 		properties_tstrunion_bool_c,
 		properties_tstrunion_int_c,
 		properties_tstrunion_bstr_c,
+		properties_tstrunion_float_c,
 	} properties_tstrunion_choice;
 };
 

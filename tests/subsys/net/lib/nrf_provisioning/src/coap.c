@@ -206,6 +206,15 @@ static unsigned char cbor_cmds5_valid[] = {
 	0x67, 0x20, 0x62, 0x79, 0x74, 0x65, 0x20, 0x73, 0x74, 0x72, 0x69, 0x6E, 0x67
 };
 
+/* [["e5256918-aba9-4d12-8b87-f2c07affec5d.14",1,{"provisioning/float":1.9987]] */
+static unsigned char cbor_cmds6_valid[] = {
+	0x81, 0x83, 0x78, 0x27, 0x65, 0x35, 0x32, 0x35, 0x36, 0x39, 0x31, 0x38, 0x2D, 0x61, 0x62,
+	0x61, 0x39, 0x2D, 0x34, 0x64, 0x31, 0x32, 0x2D, 0x38, 0x62, 0x38, 0x37, 0x2D, 0x66, 0x32,
+	0x63, 0x30, 0x37, 0x61, 0x66, 0x66, 0x65, 0x63, 0x35, 0x64, 0x2E, 0x31, 0x34, 0x01, 0xA1,
+	0x72, 0x70, 0x72, 0x6F, 0x76, 0x69, 0x73, 0x69, 0x6F, 0x6E, 0x69, 0x6E, 0x67, 0x2F, 0x66,
+	0x6C, 0x6F, 0x61, 0x74, 0xFB, 0x3F, 0xFF, 0xFA, 0xAC, 0xD9, 0xE8, 0x3E, 0x42
+};
+
 /* [["e5256918-aba9-4d12-8b87-f2c07affec5d.14", 101]] */
 static const unsigned char cbor_rsps_valid[] = {
 	0x81, 0x82, 0x78, 0x27, 0x65, 0x35, 0x32, 0x35, 0x36, 0x39, 0x31, 0x38, 0x2D, 0x61, 0x62,
@@ -1238,6 +1247,41 @@ void test_codec_config_store_bstr_valid(void)
 
 	__cmock_settings_save_one_ExpectAndReturn(
 		"provisioning/byte_string", value, sizeof(value), 0);
+
+	int ret = nrf_provisioning_codec_process_commands();
+
+	TEST_ASSERT_EQUAL_INT(0, ret);
+
+	TEST_ASSERT_EQUAL_INT(0, memcmp(cbor_rsps_valid, tx_buff, sizeof(cbor_rsps_valid)));
+
+	nrf_provisioning_codec_teardown();
+}
+
+void test_codec_config_store_float_valid(void)
+{
+	struct cdc_context cdc_ctx;
+	char at_buff[CONFIG_NRF_PROVISIONING_CODEC_AT_CMD_LEN];
+	char tx_buff[CONFIG_NRF_PROVISIONING_RX_BUF_SZ];
+	int mm_cb_ret = 0;
+	double value = 1.9987;
+
+	struct nrf_provisioning_mm_change dummy_cb = {nrf_provisioning_mm_cb_dummy, &mm_cb_ret};
+
+	nrf_provisioning_codec_init(&dummy_cb);
+
+	cdc_ctx.ipkt = cbor_cmds6_valid;
+	cdc_ctx.ipkt_sz = sizeof(cbor_cmds6_valid);
+	cdc_ctx.opkt = tx_buff;
+	cdc_ctx.opkt_sz = sizeof(tx_buff);
+
+	__cmock_lte_lc_func_mode_get_ExpectAnyArgsAndReturn(0);
+	__cmock_nrf_provisioning_at_cmee_enable_ExpectAndReturn(true);
+	__cmock_nrf_provisioning_at_cmee_control_ExpectAnyArgsAndReturn(0);
+
+	nrf_provisioning_codec_setup(&cdc_ctx, at_buff, sizeof(at_buff));
+
+	__cmock_settings_save_one_ExpectAndReturn(
+		"provisioning/float", &value, sizeof(value), 0);
 
 	int ret = nrf_provisioning_codec_process_commands();
 
