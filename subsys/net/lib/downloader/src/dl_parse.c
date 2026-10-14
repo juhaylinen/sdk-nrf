@@ -6,6 +6,8 @@
 
 #include <string.h>
 #include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
 #include <zephyr/net/socket.h>
 #include <zephyr/types.h>
 #include <errno.h>
@@ -70,11 +72,9 @@ int dl_parse_url_host(const char *url, char *host, size_t len)
 
 int dl_parse_url_port(const char *url, uint16_t *port)
 {
-	int err;
 	const char *cur;
-	const char *end;
-	char aport[8];
-	size_t len;
+	char *end;
+	unsigned long value;
 
 	cur = url;
 
@@ -85,24 +85,19 @@ int dl_parse_url_port(const char *url, uint16_t *port)
 		(void)trim_to_after(&cur, "]");
 	}
 
-	err = trim_to_after(&cur, ":");
-	if (err) {
+	/* Only the authority can hold a port, a colon in the path or query is not one. */
+	cur = memchr(cur, ':', strcspn(cur, "/?#"));
+	if (!cur) {
 		return -EINVAL;
 	}
 
-	end = strchr(cur, '/');
-	if (!end) {
-		len = strlen(cur);
-	} else {
-		len = end - cur;
+	cur++;
+	value = strtoul(cur, &end, 10);
+	if (end == cur || value == 0 || value > UINT16_MAX) {
+		return -EINVAL;
 	}
 
-	len = MIN(len, sizeof(aport) - 1);
-
-	memcpy(aport, cur, len);
-	aport[len] = '\0';
-
-	*port = atoi(aport);
+	*port = value;
 
 	return 0;
 }

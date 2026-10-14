@@ -9,6 +9,7 @@
 #include <net/downloader.h>
 #include <net/downloader_transport_coap.h>
 #include <net/downloader_transport_http.h>
+#include "dl_parse.h"
 #include <zephyr/net/socket.h>
 #include <zephyr/net/coap.h>
 
@@ -2824,6 +2825,37 @@ void test_downloader_get_coap_reconnect_keeps_block_size(void)
 
 	downloader_deinit(&dl);
 	dl_wait_for_event(DOWNLOADER_EVT_DEINITIALIZED, K_SECONDS(1));
+}
+
+static void check_url_port(const char *url, int expected_err, uint16_t expected_port)
+{
+	uint16_t port = 0;
+
+	TEST_ASSERT_EQUAL_MESSAGE(expected_err, dl_parse_url_port(url, &port), url);
+	if (expected_err == 0) {
+		TEST_ASSERT_EQUAL_MESSAGE(expected_port, port, url);
+	}
+}
+
+/* The port is only looked for in the authority part of the URL. */
+void test_dl_parse_url_port(void)
+{
+	check_url_port("http://host:8080/file", 0, 8080);
+	check_url_port("http://host:8080", 0, 8080);
+	check_url_port("host:81/file", 0, 81);
+	check_url_port("http://[::1]:8080/file", 0, 8080);
+	check_url_port("http://host:8080/a:1.bin", 0, 8080);
+
+	/* A colon after the authority is not a port. */
+	check_url_port("http://host/a:1.bin", -EINVAL, 0);
+	check_url_port("http://host/file?time=10:20", -EINVAL, 0);
+	check_url_port("http://[::1]/a:1.bin", -EINVAL, 0);
+	check_url_port("http://host", -EINVAL, 0);
+
+	/* A port that is empty, zero or out of range is not used. */
+	check_url_port("http://host:/file", -EINVAL, 0);
+	check_url_port("http://host:0/file", -EINVAL, 0);
+	check_url_port("http://host:70000/file", -EINVAL, 0);
 }
 
 void test_downloader_get_einval(void)
