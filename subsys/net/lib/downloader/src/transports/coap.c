@@ -350,8 +350,14 @@ static int coap_request_send(struct downloader *dl)
 
 	LOG_DBG("dl->file: %s", dl->file);
 	strncpy(file, dl->file, sizeof(file) - 1);
+	file[sizeof(file) - 1] = '\0';
 
 	path_elem = strtok_r(file, COAP_PATH_ELEM_DELIM, &path_elem_saveptr);
+	if (path_elem == NULL) {
+		LOG_ERR("Empty CoAP file path");
+		return -EINVAL;
+	}
+
 	do {
 		err = coap_packet_append_option(&request, COAP_OPTION_URI_PATH, path_elem,
 						strlen(path_elem));
@@ -430,6 +436,12 @@ static int dl_coap_init(struct downloader *dl, struct downloader_host_cfg *dl_ho
 {
 	int err;
 	struct transport_params_coap *coap;
+
+	/* A path of only delimiters has no Uri-Path element to request. */
+	if (dl->file[strspn(dl->file, COAP_PATH_ELEM_DELIM)] == '\0') {
+		LOG_ERR("Empty CoAP file path");
+		return -EINVAL;
+	}
 
 	coap = (struct transport_params_coap *)dl->transport_internal;
 

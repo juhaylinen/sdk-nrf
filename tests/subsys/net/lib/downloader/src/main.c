@@ -1982,6 +1982,69 @@ void test_downloader_get_coap(void)
 	dl_wait_for_event(DOWNLOADER_EVT_DEINITIALIZED, K_SECONDS(1));
 }
 
+/* A file path without any path element cannot be requested, and is rejected when the download
+ * is started.
+ */
+void test_downloader_get_coap_empty_path(void)
+{
+	int err;
+
+	err = downloader_init(&dl, &dl_cfg);
+	TEST_ASSERT_EQUAL(0, err);
+
+	err = downloader_get(&dl, &dl_host_cfg, "coap://server.com/", 0);
+	TEST_ASSERT_EQUAL(-EINVAL, err);
+
+	err = downloader_get(&dl, &dl_host_cfg, "coap://server.com//", 0);
+	TEST_ASSERT_EQUAL(-EINVAL, err);
+
+	TEST_ASSERT_EQUAL(0, z_impl_zsock_socket_fake.call_count);
+
+	downloader_deinit(&dl);
+	dl_wait_for_event(DOWNLOADER_EVT_DEINITIALIZED, K_SECONDS(1));
+}
+
+/* The longest file path that fits in the downloader must be sent as is. */
+void test_downloader_get_coap_longest_path(void)
+{
+	int err;
+	char url[sizeof("coap://server.com/") + CONFIG_DOWNLOADER_MAX_FILENAME_SIZE];
+	size_t prefix_len = strlen("coap://server.com/");
+	size_t path_len = CONFIG_DOWNLOADER_MAX_FILENAME_SIZE - 1;
+
+	memcpy(url, "coap://server.com/", prefix_len);
+	memset(url + prefix_len, 'a', path_len);
+	url[prefix_len + path_len] = '\0';
+
+	err = downloader_init(&dl, &dl_cfg);
+	TEST_ASSERT_EQUAL(0, err);
+
+	zsock_getaddrinfo_fake.custom_fake = zsock_getaddrinfo_server_ok;
+	zsock_freeaddrinfo_fake.custom_fake = zsock_freeaddrinfo_server_ipv6;
+	z_impl_zsock_socket_fake.custom_fake = z_impl_zsock_socket_coap_ipv6_ok;
+	z_impl_zsock_connect_fake.custom_fake = z_impl_zsock_connect_ipv6_ok;
+	z_impl_zsock_setsockopt_fake.custom_fake = z_impl_zsock_setsockopt_coap_ok;
+	z_impl_zsock_sendto_fake.custom_fake = z_impl_zsock_sendto_ok;
+	z_impl_zsock_recvfrom_fake.custom_fake = z_impl_zsock_recvfrom_coap;
+
+	coap_get_transmission_parameters_fake.custom_fake = coap_get_transmission_parameters_ok;
+	coap_pending_cycle_fake.custom_fake = coap_pending_cycle_ok;
+	coap_header_get_type_fake.custom_fake = coap_header_get_type_ack;
+	coap_header_get_code_fake.custom_fake = coap_header_get_code_ok;
+	coap_packet_get_payload_fake.custom_fake = coap_packet_get_payload_ok;
+
+	err = downloader_get(&dl, &dl_host_cfg, url, 0);
+	TEST_ASSERT_EQUAL(0, err);
+
+	dl_wait_for_event(DOWNLOADER_EVT_DONE, K_SECONDS(3));
+
+	TEST_ASSERT(coap_packet_append_option_fake.call_count > 0);
+	TEST_ASSERT_EQUAL(path_len, coap_packet_append_option_fake.arg3_val);
+
+	downloader_deinit(&dl);
+	dl_wait_for_event(DOWNLOADER_EVT_DEINITIALIZED, K_SECONDS(1));
+}
+
 void test_downloader_get_coaps(void)
 {
 	int err;
