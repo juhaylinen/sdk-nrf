@@ -52,7 +52,7 @@ enum downloader_evt_id {
 	 * - -EHOSTDOWN: Host went down during download.
 	 * - -EBADMSG: HTTP response header not as expected.
 	 * - -ERANGE: HTTP response does not support range requests.
-	 * - -E2BIG: HTTP response header could not fit in buffer.
+	 * - -E2BIG: HTTP request or response header could not fit in buffer.
 	 * - -EPROTONOSUPPORT: Protocol is not supported.
 	 * - -EINVAL: Invalid configuration.
 	 * - -EAFNOSUPPORT: Unsupported address family (IPv4/IPv6).

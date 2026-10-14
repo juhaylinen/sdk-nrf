@@ -1824,6 +1824,64 @@ void test_downloader_get_http_connect_enetunreach(void)
 	dl_wait_for_event(DOWNLOADER_EVT_DEINITIALIZED, K_SECONDS(1));
 }
 
+/* The GET request for HTTP_URL, byte for byte. */
+#define HTTP_GET_REQUEST \
+	"GET /path/to/file.end HTTP/1.1\r\n" \
+	"Host: server.com\r\n" \
+	"Connection: keep-alive\r\n" \
+	"\r\n"
+
+/* A request that does not fit in the buffer, including its terminating NUL, is reported as an
+ * error. It must not be truncated and sent, and a new connection does not help.
+ */
+static void check_http_request_does_not_fit(char *buf, size_t buf_size)
+{
+	int err;
+	struct downloader_evt evt;
+	struct downloader_cfg cfg = {
+		.callback = dl_callback_abort,
+		.buf = buf,
+		.buf_size = buf_size,
+	};
+
+	err = downloader_init(&dl, &cfg);
+	TEST_ASSERT_EQUAL(0, err);
+
+	zsock_getaddrinfo_fake.custom_fake = zsock_getaddrinfo_server_ok;
+	zsock_freeaddrinfo_fake.custom_fake = zsock_freeaddrinfo_server_ipv6;
+	z_impl_zsock_socket_fake.custom_fake = z_impl_zsock_socket_http_ipv6_ok;
+	z_impl_zsock_connect_fake.custom_fake = z_impl_zsock_connect_ipv6_ok;
+	z_impl_zsock_setsockopt_fake.custom_fake = z_impl_zsock_setsockopt_http_ok;
+	z_impl_zsock_sendto_fake.custom_fake = z_impl_zsock_sendto_ok;
+
+	err = downloader_get(&dl, &dl_host_cfg, HTTP_URL, 0);
+	TEST_ASSERT_EQUAL(0, err);
+
+	evt = dl_wait_for_event(DOWNLOADER_EVT_ERROR, K_SECONDS(3));
+	TEST_ASSERT_EQUAL(-E2BIG, evt.error);
+
+	/* Nothing was sent, and the connection was not retried. */
+	TEST_ASSERT_EQUAL(0, z_impl_zsock_sendto_fake.call_count);
+	TEST_ASSERT_EQUAL(1, z_impl_zsock_socket_fake.call_count);
+
+	downloader_deinit(&dl);
+	dl_wait_for_event(DOWNLOADER_EVT_DEINITIALIZED, K_SECONDS(1));
+}
+
+void test_downloader_get_http_request_fills_buffer(void)
+{
+	static char buf[sizeof(HTTP_GET_REQUEST) - 1];
+
+	check_http_request_does_not_fit(buf, sizeof(buf));
+}
+
+void test_downloader_get_http_request_exceeds_buffer(void)
+{
+	static char buf[sizeof(HTTP_GET_REQUEST) - 2];
+
+	check_http_request_does_not_fit(buf, sizeof(buf));
+}
+
 void test_downloader_get_http_getaddr_failed(void)
 {
 	int err;
